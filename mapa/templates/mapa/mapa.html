@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoreo de Camiones - Mapa de Pines</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <!-- MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #mapa { height: 100vh; width: 100vw; }
+        .formulario-pin {
+            padding: 10px;
+            background: white;
+        }
+        .formulario-pin h4 { margin-top: 0; margin-bottom: 10px; color: #333; }
+        .formulario-pin input, .formulario-pin textarea {
+            width: 100%; margin-bottom: 10px; padding: 5px; box-sizing: border-box;
+            border: 1px solid #ccc; border-radius: 4px;
+        }
+        .formulario-pin button {
+            width: 100%; padding: 8px; background-color: #007bff; color: white;
+            border: none; border-radius: 4px; cursor: pointer; font-weight: bold;
+        }
+        .formulario-pin button:hover { background-color: #0056b3; }
+        
+        /* Popup info custom styling */
+        .info-pin h3 { margin: 0 0 5px 0; color: #2c3e50; }
+        .info-pin p { margin: 0 0 5px 0; color: #555; }
+        .info-pin small { color: #888; }
+    </style>
+</head>
+<body>
+
+<div id="mapa"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<!-- MarkerCluster JS -->
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Inicializar el mapa centrado en Chile (lat, lng, zoom)
+        var map = L.map('mapa').setView([-33.4489, -70.6693], 10);
+
+        // Añadir capa de OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Crear grupo de cluster para los pines
+        var markers = L.markerClusterGroup({
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true
+        });
+
+        // Función para cargar los pines desde la API
+        function cargarPines() {
+            fetch('/api/pines/') // Endpoint creado en views.py
+                .then(response => response.json())
+                .then(data => {
+                    markers.clearLayers(); // Limpiar antes de recargar
+                    
+                    data.forEach(pin => {
+                        var marker = L.marker([pin.latitud, pin.longitud]);
+                        
+                        // Contenido HTML del popup al hacer click sobre el pin ya creado
+                        var popupContent = `
+                            <div class="info-pin">
+                                <h3>${pin.nombre}</h3>
+                                <p>${pin.descripcion || 'Sin descripción'}</p>
+                                <small>Lat: ${pin.latitud.toFixed(5)}, Lng: ${pin.longitud.toFixed(5)}</small>
+                            </div>
+                        `;
+                        marker.bindPopup(popupContent);
+                        markers.addLayer(marker);
+                    });
+                    
+                    map.addLayer(markers);
+                })
+                .catch(error => console.error('Error al cargar pines:', error));
+        }
+
+        // Cargar pines iniciales
+        cargarPines();
+
+        // Variable global para almacenar el popup temporal de creación
+        var currentPopup = null;
+
+        // Evento: Click en el mapa para crear un pin nuevo
+        map.on('click', function(e) {
+            var lat = e.latlng.lat;
+            var lng = e.latlng.lng;
+
+            // Formulario HTML que se mostrará en el popup
+            var formContent = `
+                <div class="formulario-pin">
+                    <h4>Crear un nuevo Pin</h4>
+                    <input type="text" id="pin-nombre" placeholder="Nombre de la marca" required>
+                    <textarea id="pin-descripcion" placeholder="Descripción adicional" rows="3"></textarea>
+                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                        Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}
+                    </p>
+                    <button onclick="guardarPin(${lat}, ${lng})">Guardar Pin</button>
+                </div>
+            `;
+
+            // Si hay un popup abierto, lo cerramos
+            if (currentPopup) { map.closePopup(currentPopup); }
+
+            currentPopup = L.popup()
+                .setLatLng(e.latlng)
+                .setContent(formContent)
+                .openOn(map);
+        });
+
+        // Función para enviar los datos del nuevo pin a la API
+        window.guardarPin = function(lat, lng) {
+            var nombre = document.getElementById('pin-nombre').value;
+            var descripcion = document.getElementById('pin-descripcion').value;
+
+            if (!nombre.trim()) {
+                alert('El nombre es obligatorio');
+                return;
+            }
+
+            var formData = {
+                nombre: nombre,
+                latitud: lat,
+                longitud: lng,
+                descripcion: descripcion
+            };
+
+            fetch('/api/crear_pin/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Cerrar el popup de formulario
+                    map.closePopup(currentPopup);
+                    // Recargar los pines para mostrar el nuevo
+                    cargarPines();
+                } else {
+                    alert('Error al guardar el pin: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Hubo un error en la conexión.');
+            });
+        }
+    });
+</script>
+
+</body>
+</html>
