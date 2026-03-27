@@ -2,27 +2,36 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
-from .models import Pin
+from .models import Camara
 
 def mapa_view(request):
     return render(request, 'mapa/mapa.html')
 
 def api_pines(request):
-    pines = Pin.objects.all().values('id', 'nombre', 'latitud', 'longitud', 'descripcion')
-    return JsonResponse(list(pines), safe=False)
+    # Obtenemos las cámaras y las formateamos para que el JS las entienda como pines
+    camaras = Camara.objects.all().values('id', 'lat', 'long', 'estado')
+    pines = []
+    for c in camaras:
+        pines.append({
+            'id': c['id'],
+            'nombre': f"Cámara {c['id']}",
+            'latitud': float(c['lat']),
+            'longitud': float(c['long']),
+            'descripcion': f"Estado: {'Activa' if c['estado'] else 'Inactiva'}"
+        })
+    return JsonResponse(pines, safe=False)
 
 @csrf_exempt
 def api_crear_pin(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            nuevo_pin = Pin.objects.create(
-                nombre=data.get('nombre', 'Nuevo Pin'),
-                latitud=data.get('latitud'),
-                longitud=data.get('longitud'),
-                descripcion=data.get('descripcion', '')
+            nueva_camara = Camara.objects.create(
+                lat=data.get('latitud'),
+                long=data.get('longitud'),
+                estado=True
             )
-            return JsonResponse({'status': 'success', 'pin_id': nuevo_pin.id})
+            return JsonResponse({'status': 'success', 'pin_id': nueva_camara.id})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)

@@ -139,25 +139,22 @@
             // Variable global para almacenar el popup temporal de creación
             var currentPopup = null;
 
-            // Evento: Click en el mapa para crear un pin nuevo
+            // Evento: Click en el mapa para crear un pin nuevo (Cámara)
             map.on('click', function (e) {
                 var lat = e.latlng.lat;
                 var lng = e.latlng.lng;
 
-                // Formulario HTML que se mostrará en el popup
+                // Formulario simplificado para la tabla Camara en Neon
                 var formContent = `
                 <div class="formulario-pin">
-                    <h4>Crear un nuevo Pin</h4>
-                    <input type="text" id="pin-nombre" placeholder="Nombre de la marca" required>
-                    <textarea id="pin-descripcion" placeholder="Descripción adicional" rows="3"></textarea>
+                    <h4>Registrar Nueva Cámara</h4>
                     <p style="font-size: 12px; color: #666; margin-bottom: 10px;">
                         Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}
                     </p>
-                    <button onclick="guardarPin(${lat}, ${lng})">Guardar Pin</button>
+                    <button onclick="guardarPin(${lat}, ${lng})">Confirmar Ubicación</button>
                 </div>
             `;
 
-                // Si hay un popup abierto, lo cerramos
                 if (currentPopup) { map.closePopup(currentPopup); }
 
                 currentPopup = L.popup()
@@ -166,21 +163,11 @@
                     .openOn(map);
             });
 
-            // Función para enviar los datos del nuevo pin a la API
+            // Función para enviar los datos de la nueva cámara a la API
             window.guardarPin = function (lat, lng) {
-                var nombre = document.getElementById('pin-nombre').value;
-                var descripcion = document.getElementById('pin-descripcion').value;
-
-                if (!nombre.trim()) {
-                    alert('El nombre es obligatorio');
-                    return;
-                }
-
                 var formData = {
-                    nombre: nombre,
                     latitud: lat,
-                    longitud: lng,
-                    descripcion: descripcion
+                    longitud: lng
                 };
 
                 fetch('/api/crear_pin/', {
@@ -193,12 +180,10 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'success') {
-                            // Cerrar el popup de formulario
                             map.closePopup(currentPopup);
-                            // Recargar los pines para mostrar el nuevo
                             cargarPines();
                         } else {
-                            alert('Error al guardar el pin: ' + data.message);
+                            alert('Error al guardar la cámara: ' + data.message);
                         }
                     })
                     .catch(error => {
