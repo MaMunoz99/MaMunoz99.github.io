@@ -15,71 +15,260 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
     <style>
+        :root {
+            --bg-dark: #0f172a;
+            /* Navy slate */
+            --accent-cyan: #22d3ee;
+            --accent-blue: #3b82f6;
+            --text-main: #f8fafc;
+            --panel-bg: rgba(15, 23, 42, 0.85);
+            --border-color: rgba(148, 163, 184, 0.2);
+        }
+
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow: hidden;
         }
 
         #mapa {
             height: 100vh;
             width: 100vw;
+            background: var(--bg-dark);
         }
 
-        .formulario-pin {
-            padding: 10px;
-            background: white;
+        /* Dashboard Overlay */
+        .dashboard-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            pointer-events: none;
         }
 
-        .formulario-pin h4 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            color: #333;
+        .stat-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border-color);
+            padding: 15px 20px;
+            border-radius: 12px;
+            pointer-events: auto;
+            min-width: 220px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
         }
 
-        .formulario-pin input,
-        .formulario-pin textarea {
-            width: 100%;
-            margin-bottom: 10px;
-            padding: 5px;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
+        .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #94a3b8;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+
+        /* Pulsing SVG Marker */
+        .pulse-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pulse-core {
+            width: 12px;
+            height: 12px;
+            background: var(--accent-cyan);
+            border: 2px solid white;
+            border-radius: 50%;
+            z-index: 2;
+        }
+
+        .pulse-ring {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 3px solid var(--accent-cyan);
+            border-radius: 50%;
+            animation: pulse 2s infinite ease-out;
+            opacity: 0;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.5);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(2.5);
+                opacity: 0;
+            }
+        }
+
+        /* Truck Badge Count */
+        .truck-count-badge {
+            position: absolute;
+            top: -15px;
+            right: -15px;
+            background: #f59e0b;
+            /* Amber */
+            color: #1e293b;
+            font-size: 11px;
+            font-weight: 900;
+            padding: 2px 6px;
             border-radius: 4px;
+            border: 1px solid white;
         }
 
-        .formulario-pin button {
-            width: 100%;
+        /* Popups styling */
+        .leaflet-popup-content-wrapper {
+            background: var(--bg-dark);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        .leaflet-popup-tip {
+            background: var(--bg-dark);
+        }
+
+        .popup-header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+
+        .popup-header h3 {
+            margin: 0;
+            font-size: 16px;
+            color: var(--accent-cyan);
+        }
+
+        .camion-row {
             padding: 8px;
-            background-color: #007bff;
-            color: white;
+            background: rgba(255, 255, 255, 0.05);
+            margin-bottom: 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .camion-patente {
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+
+        .camion-time {
+            color: #94a3b8;
+            font-size: 11px;
+        }
+
+        /* Sidebar Historial */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 350px;
+            height: 100vh;
+            background: var(--bg-dark);
+            border-left: 1px solid var(--border-color);
+            z-index: 2000;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 25px;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+        }
+
+        .sidebar.active {
+            right: 0;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .close-sidebar {
+            background: none;
             border: none;
+            color: var(--text-main);
+            font-size: 24px;
+            cursor: pointer;
+            opacity: 0.6;
+        }
+
+        .close-sidebar:hover {
+            opacity: 1;
+        }
+
+        .historial-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-historial {
+            width: 100%;
+            background: rgba(34, 211, 238, 0.1);
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            padding: 8px;
             border-radius: 4px;
             cursor: pointer;
-            font-weight: bold;
+            font-weight: 600;
+            font-size: 12px;
+            margin-top: 10px;
+            transition: all 0.2s;
         }
 
-        .formulario-pin button:hover {
-            background-color: #0056b3;
-        }
-
-        /* Popup info custom styling */
-        .info-pin h3 {
-            margin: 0 0 5px 0;
-            color: #2c3e50;
-        }
-
-        .info-pin p {
-            margin: 0 0 5px 0;
-            color: #555;
-        }
-
-        .info-pin small {
-            color: #888;
+        .btn-historial:hover {
+            background: var(--accent-cyan);
+            color: var(--bg-dark);
         }
     </style>
 </head>
 
 <body>
+
+    <div class="dashboard-overlay">
+        <div class="stat-panel">
+            <div class="stat-label">Estado del Sistema</div>
+            <div id="sys-status" class="stat-value" style="font-size: 14px; color: #10b981;">● ONLINE / REAL-TIME</div>
+        </div>
+        <div class="stat-panel">
+            <div class="stat-label">Camiones en Ruta</div>
+            <div id="total-trucks" class="stat-value">0</div>
+        </div>
+        <div class="stat-panel">
+            <div class="stat-label">Cámaras Activas</div>
+            <div id="active-cams" class="stat-value">0</div>
+        </div>
+    </div>
+
+    <!-- Sidebar de Historial -->
+    <div id="sidebar-historial" class="sidebar">
+        <div class="sidebar-header">
+            <h3 id="sidebar-title" style="margin:0; color:var(--accent-cyan)">Historial de Cámara</h3>
+            <button class="close-sidebar" onclick="cerrarHistorial()">&times;</button>
+        </div>
+        <div id="historial-loading" style="display:none; text-align:center; padding:20px; color:var(--accent-cyan)">Cargando eventos...</div>
+        <div id="historial-contenido" class="historial-list"></div>
+    </div>
 
     <div id="mapa"></div>
 
@@ -91,109 +280,142 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            // Inicializar el mapa centrado en Chile (lat, lng, zoom)
-            var map = L.map('mapa').setView([-33.4489, -70.6693], 10);
+            // Dashboard & Sidebar Elements
+            const trucksCountEl = document.getElementById('total-trucks');
+            const camsCountEl = document.getElementById('active-cams');
+            const sidebar = document.getElementById('sidebar-historial');
+            const historialContenido = document.getElementById('historial-contenido');
 
-            // Añadir capa de OpenStreetMap
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            var map = L.map('mapa', {
+                zoomControl: false // Ocultar para estética limpia
+            }).setView([-20.2457, -70.1000], 13);
+
+            // Re-añadir controles en mejor posición
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            // Capa Dark Matter (Estilo Industrial/Profesional)
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CARTO'
             }).addTo(map);
 
-            // Crear grupo de cluster para los pines
             var markers = L.markerClusterGroup({
                 spiderfyOnMaxZoom: true,
-                showCoverageOnHover: false,
-                zoomToBoundsOnClick: true
+                showCoverageOnHover: false
             });
 
-            // Función para cargar los pines desde la API
-            function cargarPines() {
-                fetch('/api/pines/') // Endpoint creado en views.py
-                    .then(response => response.json())
+            function updateDashboard(data) {
+                let totalTrucks = 0;
+                let activeCams = data.length;
+                data.forEach(c => totalTrucks += c.camiones.length);
+
+                trucksCountEl.innerText = totalTrucks;
+                camsCountEl.innerText = activeCams;
+            }
+
+            function cargarEstado() {
+                fetch('/api/estado_actual/')
+                    .then(res => res.json())
                     .then(data => {
-                        markers.clearLayers(); // Limpiar antes de recargar
+                        markers.clearLayers();
+                        updateDashboard(data);
 
-                        data.forEach(pin => {
-                            var marker = L.marker([pin.latitud, pin.longitud]);
+                        data.forEach(camara => {
+                            // Icono SVG custom con pulso
+                            var customIcon = L.divIcon({
+                                className: 'pulse-marker',
+                                html: `
+                                    <div class="pulse-ring"></div>
+                                    <div class="pulse-core"></div>
+                                    ${camara.camiones.length > 0 ? `<div class="truck-count-badge">${camara.camiones.length}</div>` : ''}
+                                `,
+                                iconSize: [30, 30]
+                            });
 
-                            // Contenido HTML del popup al hacer click sobre el pin ya creado
-                            var popupContent = `
-                            <div class="info-pin">
-                                <h3>${pin.nombre}</h3>
-                                <p>${pin.descripcion || 'Sin descripción'}</p>
-                                <small>Lat: ${pin.latitud.toFixed(5)}, Lng: ${pin.longitud.toFixed(5)}</small>
-                            </div>
-                        `;
-                            marker.bindPopup(popupContent);
+                            var marker = L.marker([camara.latitud, camara.longitud], { icon: customIcon });
+
+                            // Solo mostrar los últimos 3 camiones en el popup directo
+                            let top3 = camara.camiones.slice(0, 3);
+                            let camionesHtml = top3.length > 0
+                                ? top3.map(c => `
+                                    <div class="camion-row">
+                                        <span class="camion-patente">${c.patente}</span>
+                                        <span class="camion-time">${c.fecha}</span>
+                                    </div>
+                                `).join('')
+                                : '<div style="color:#94a3b8; font-size:12px; padding:10px 0;">Sin detecciones activas</div>';
+
+                            var popupHtml = `
+                                <div class="popup-header">
+                                    <h3>Sensor ${camara.id}</h3>
+                                </div>
+                                <div id="camiones-container-${camara.id}">${camionesHtml}</div>
+                                <button class="btn-historial" onclick="abrirHistorial(${camara.id})">VER HISTORIAL COMPLETO</button>
+                            `;
+
+                            marker.bindPopup(popupHtml);
                             markers.addLayer(marker);
                         });
-
                         map.addLayer(markers);
                     })
-                    .catch(error => console.error('Error al cargar pines:', error));
+                    .catch(err => console.error(err));
             }
 
-            // Cargar pines iniciales
-            cargarPines();
+            // Funciones de Historial (Sidebar)
+            window.abrirHistorial = (camaraId) => {
+                document.getElementById('sidebar-title').innerText = `Historial Cámara ${camaraId}`;
+                sidebar.classList.add('active');
+                historialContenido.innerHTML = "";
+                document.getElementById('historial-loading').style.display = "block";
 
-            // Variable global para almacenar el popup temporal de creación
-            var currentPopup = null;
+                fetch(`/api/historial_camara/${camaraId}/`)
+                    .then(res => res.json())
+                    .then(data => {
+                        document.getElementById('historial-loading').style.display = "none";
+                        if (data.length === 0) {
+                            historialContenido.innerHTML = "<p style='color:#94a3b8'>No hay registros históricos.</p>";
+                            return;
+                        }
+                        historialContenido.innerHTML = data.map(det => `
+                            <div class="camion-row" style="padding:12px; flex-direction:column; gap:4px">
+                                <div style="display:flex; justify-content:space-between">
+                                    <span class="camion-patente" style="font-size:15px">${det.patente}</span>
+                                    <span style="color:#10b981; font-size:11px">DETECTADO</span>
+                                </div>
+                                <span class="camion-time">${det.fecha}</span>
+                            </div>
+                        `).join('');
+                    });
+            };
 
-            // Evento: Click en el mapa para crear un pin nuevo (Cámara)
+            window.cerrarHistorial = () => {
+                sidebar.classList.remove('active');
+            };
+
+            cargarEstado();
+            setInterval(cargarEstado, 20000); // 20s para refresco profesional
+
+            // Soporte para crear cámaras nuevo (mantenemos funcionalidad)
             map.on('click', function (e) {
-                var lat = e.latlng.lat;
-                var lng = e.latlng.lng;
-
-                // Formulario simplificado para la tabla Camara en Neon
-                var formContent = `
-                <div class="formulario-pin">
-                    <h4>Registrar Nueva Cámara</h4>
-                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">
-                        Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}
-                    </p>
-                    <button onclick="guardarPin(${lat}, ${lng})">Confirmar Ubicación</button>
-                </div>
-            `;
-
-                if (currentPopup) { map.closePopup(currentPopup); }
-
-                currentPopup = L.popup()
-                    .setLatLng(e.latlng)
-                    .setContent(formContent)
-                    .openOn(map);
+                const { lat, lng } = e.latlng;
+                const form = `
+                    <div style="padding:10px; color:white;">
+                        <h4 style="margin:0 0 10px 0">Instalar Punto de Monitoreo</h4>
+                        <p style="font-size:11px; opacity:0.7">Coord: ${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
+                        <button onclick="confirmarCamara(${lat}, ${lng})" style="width:100%; border:none; padding:8px; background:var(--accent-cyan); border-radius:4px; font-weight:700; cursor:pointer">CONFIRMAR</button>
+                    </div>
+                `;
+                L.popup().setLatLng(e.latlng).setContent(form).openOn(map);
             });
 
-            // Función para enviar los datos de la nueva cámara a la API
-            window.guardarPin = function (lat, lng) {
-                var formData = {
-                    latitud: lat,
-                    longitud: lng
-                };
-
+            window.confirmarCamara = (lat, lng) => {
                 fetch('/api/crear_pin/', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(formData)
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            map.closePopup(currentPopup);
-                            cargarPines();
-                        } else {
-                            alert('Error al guardar la cámara: ' + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('Hubo un error en la conexión.');
-                    });
-            }
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ latitud: lat, longitud: lng })
+                }).then(() => { map.closePopup(); cargarEstado(); });
+            };
         });
     </script>
-
 </body>
 
 </html>
